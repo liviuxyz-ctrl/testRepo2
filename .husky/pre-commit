@@ -6,22 +6,39 @@
 LMS_URL=${LMS_URL:-http://localhost:3000/v1}
 CG_MODEL=${CG_MODEL:-gemma-3-4b-it-qat}
 
-# Check Node.js (don't block commit if missing)
+# Your app (path with space is okay because it's quoted)
+CG_CLI="${CG_CLI:-C:/Users/Admin/commitGardian - Copy/index.js}"
+
+# Node check (don’t block commit if missing)
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js not found; skipping review."
   exit 0
 fi
 
+# Build filtered staged list: skip hooks and our own outputs
+STAGED="$(git diff --staged --name-only --no-color | tr -d '\r')"
+FILTERED="$(printf "%s\n" "$STAGED" \
+  | grep -v '^\.husky/' \
+  | grep -v '^\.cg/' \
+  | grep -v '^\.cg-fixes/' \
+  | grep -v '^package-lock\.json$' || true)"
+
+# If nothing relevant remains, skip review to avoid self-flagging
+if [ -z "$FILTERED" ]; then
+  echo "No relevant staged changes (skipping review)."
+  exit 0
+fi
+
 # 1) Run review (blocks on 'high')
-node "C:/Users/Admin/commitGardian - Copy" --staged
+node "$CG_CLI" --staged ##--debug
 status=$?
 
 if [ $status -eq 1 ]; then
-  echo "High severity found. Generating ADD-ONLY suggestions???"
-  node "C:/Users/Admin/commitGardian - Copy" --advise --output ".cg/suggestions.json" --sidecar
-  echo "Suggestions: .cg/suggestions.json"
-  echo "Sidecar stubs: .cg-fixes/"
-  echo "Commit blocked. Review suggestions and apply as needed, then commit again."
+  echo "🔧 High severity found. Generating ADD-ONLY suggestions…"
+  node "$CG_CLI" --advise --output ".cg/suggestions.json" --sidecar
+  echo "📄 Suggestions: .cg/suggestions.json"
+  echo "🗂  Sidecar stubs: .cg-fixes/"
+  echo "❌ Commit blocked. Review suggestions and apply as needed, then commit again."
   exit 1
 fi
 
