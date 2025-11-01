@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# Bypass once with: SKIP_REVIEW=1 git commit -m "..."
+[ "$SKIP_REVIEW" = "1" ] && echo "bypass via SKIP_REVIEW" && exit 0
+
+# Defaults for LM Studio
+LMS_URL=${LMS_URL:-http://localhost:3000/v1}
+CG_MODEL=${CG_MODEL:-gemma-3-4b-it-qat}
+
+# Check Node.js (don't block commit if missing)
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js not found; skipping review."
+  exit 0
+fi
+
+# 1) Run review (blocks on 'high')
+node "C:/Users/Admin/commitGardian - Copy" --staged
+status=$?
+
+if [ $status -eq 1 ]; then
+  echo "High severity found. Generating ADD-ONLY suggestions???"
+  node "C:/Users/Admin/commitGardian - Copy" --advise --output ".cg/suggestions.json" --sidecar
+  echo "Suggestions: .cg/suggestions.json"
+  echo "Sidecar stubs: .cg-fixes/"
+  echo "Commit blocked. Review suggestions and apply as needed, then commit again."
+  exit 1
+fi
+
+# pass or warn
+exit 0
